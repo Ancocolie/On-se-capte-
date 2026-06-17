@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>on se voit ?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0E0E0E; font-family: 'Inter', sans-serif; }
+    button:focus-visible { outline: 1px solid #C4877A; outline-offset: 2px; }
+    input:focus, textarea:focus { outline: none; border-color: #C4877A44 !important; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #0E0E0E; }
+    ::-webkit-scrollbar-thumb { background: #2A2A2A; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const STORAGE_KEY = "dispo_events";
+
+    function loadEvents() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch { return []; }
+    }
+
+    function saveEvents(events) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); } catch {}
+    }
+
+    function generateCode() {
+      return Math.random().toString(36).substring(2, 7).toUpperCase();
+    }
+
+    function formatDate(d) {
+      const date = new Date(d + "T12:00:00");
+      return date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    }
+
+    function getDaysInMonth(year, month) {
+      return new Date(year, month + 1, 0).getDate();
+    }
+
+    function toISO(year, month, day) {
+      return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+
+    function TagInput({ values, onChange, placeholder, maxItems = 5 }) {
+      const [input, setInput] = useState("");
+      const add = () => {
+        const v = input.trim();
+        if (!v || values.includes(v) || values.length >= maxItems) return;
+        onChange([...values, v]);
+        setInput("");
+      };
+      const remove = (v) => onChange(values.filter(x => x !== v));
+      return (
+        <div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input
+              style={{ ...S.input, flex: 1, marginBottom: 0 }}
+              placeholder={placeholder}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+              maxLength={50}
+            />
+            <button onClick={add} disabled={!input.trim() || values.length >= maxItems}
+              style={{ background: input.trim() && values.length < maxItems ? "#C4877A" : "#222", color: input.trim() && values.length < maxItems ? "#0E0E0E" : "#444", border: "none", borderRadius: 10, padding: "0 16px", cursor: input.trim() && values.length < maxItems ? "pointer" : "default", fontSize: 18, flexShrink: 0 }}>+</button>
+          </div>
+          {values.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {values.map(v => (
+                <span key={v} style={S.tagChip}>
+                  {v}
+                  <button onClick={() => remove(v)} style={S.tagRemove}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function ChipSelect({ options, value, onChange }) {
+      const [otherVal, setOtherVal] = useState("");
+      const [showOther, setShowOther] = useState(false);
+      const isOther = value && !options.includes(value);
+      return (
+        <div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: showOther ? 10 : 0 }}>
+            {options.map(o => {
+              const sel = value === o;
+              return (
+                <button key={o} onClick={() => { onChange(o); setShowOther(false); }}
+                  style={{ ...S.chip, background: sel ? "#C4877A22" : "transparent", borderColor: sel ? "#C4877A" : "#2A2A2A", color: sel ? "#C4877A" : "#888" }}>{o}</button>
+              );
+            })}
+            <button onClick={() => { setShowOther(s => !s); if (!showOther) onChange(""); }}
+              style={{ ...S.chip, background: (showOther || isOther) ? "#C4877A22" : "transparent", borderColor: (showOther || isOther) ? "#C4877A" : "#2A2A2A", color: (showOther || isOther) ? "#C4877A" : "#555" }}>autre…</button>
+          </div>
+          {(showOther || isOther) && (
+            <input style={{ ...S.input, marginTop: 6 }} placeholder="Précise ici…"
+              value={isOther ? value : otherVal}
+              onChange={e => { setOtherVal(e.target.value); onChange(e.target.value); }}
+              maxLength={60} autoFocus />
+          )}
+        </div>
+      );
+    }
+
+    function CalendarPicker({ selected, onChange }) {
+      const today = new Date();
+      const [year, setYear] = useState(today.getFullYear());
+      const [month, setMonth] = useState(today.getMonth());
+      const min = toISO(today.getFullYear(), today.getMonth(), today.getDate());
+      const daysInMonth = getDaysInMonth(year, month);
+      const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7;
+      const cells = [];
+      for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
+      for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+      const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11); } else setMonth(m => m - 1); };
+      const nextMonth = () => { if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1); };
+      const monthLabel = new Date(year, month).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+      return (
+        <div style={{ width: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <button onClick={prevMonth} style={S.navBtn}>‹</button>
+            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, color: "#E8E4DE", textTransform: "capitalize", letterSpacing: "0.04em" }}>{monthLabel}</span>
+            <button onClick={nextMonth} style={S.navBtn}>›</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 6 }}>
+            {["Lu","Ma","Me","Je","Ve","Sa","Di"].map(d => (
+              <div key={d} style={{ textAlign: "center", fontSize: 10, color: "#555", padding: "4px 0", letterSpacing: "0.08em" }}>{d}</div>
+            ))}
+            {cells.map((day, i) => {
+              if (!day) return <div key={`e${i}`} />;
+              const iso = toISO(year, month, day);
+              const isPast = iso < min;
+              const isSel = selected.includes(iso);
+              return (
+                <button key={iso} disabled={isPast}
+                  onClick={() => { if (isSel) onChange(selected.filter(d => d !== iso)); else onChange([...selected, iso].sort()); }}
+                  style={{ ...S.dayCell, background: isSel ? "#C4877A" : "#1E1E1E", color: isPast ? "#333" : isSel ? "#0E0E0E" : "#E8E4DE", cursor: isPast ? "default" : "pointer", border: isSel ? "1px solid #C4877A" : "1px solid #2A2A2A" }}>{day}</button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function CreateView({ onCreated, onBack }) {
+      const [title, setTitle] = useState("");
+      const [note, setNote] = useState("");
+      const [selectedDates, setSelectedDates] = useState([]);
+      const [lieux, setLieux] = useState([]);
+      const [activites, setActivites] = useState([]);
+      const canCreate = title.trim() && selectedDates.length > 0;
+      const handleCreate = () => {
+        if (!canCreate) return;
+        const code = generateCode();
+        const event = { id: code, title: title.trim(), note: note.trim(), dates: selectedDates, lieux, activites, responses: [], createdAt: new Date().toISOString() };
+        const events = loadEvents();
+        events.push(event);
+        saveEvents(events);
+        onCreated(event);
+      };
+      return (
+        <div style={S.card}>
+          <button onClick={onBack} style={S.backLink}>← retour</button>
+          <h2 style={S.cardTitle}>Nouvel événement</h2>
+          <label style={S.label}>Un titre pour l'occasion</label>
+          <input style={S.input} placeholder="ex. apéro juillet, ciné cette semaine…" value={title} onChange={e => setTitle(e.target.value)} maxLength={60} />
+          <label style={S.label}>Un mot (optionnel)</label>
+          <textarea style={{ ...S.input, height: 68, resize: "none" }} placeholder="ex. ça fait longtemps, on s'organise ?" value={note} onChange={e => setNote(e.target.value)} maxLength={200} />
+          <label style={S.label}>Tes dispos</label>
+          <CalendarPicker selected={selectedDates} onChange={setSelectedDates} />
+          {selectedDates.length > 0 && (
+            <div style={{ marginTop: 6, marginBottom: 12 }}>
+              {selectedDates.map(d => <span key={d} style={S.dateTag}>{formatDate(d)}</span>)}
+            </div>
+          )}
+          <div style={S.divider} />
+          <label style={S.label}>Lieux possibles <span style={{ color: "#444", textTransform: "none", letterSpacing: 0 }}>(optionnel)</span></label>
+          <p style={S.hint}>Ajoute des idées — tes potes choisiront. Entrée ou +</p>
+          <TagInput values={lieux} onChange={setLieux} placeholder="ex. chez moi, le café du Théâtre…" maxItems={5} />
+          <div style={S.divider} />
+          <label style={S.label}>Activités possibles <span style={{ color: "#444", textTransform: "none", letterSpacing: 0 }}>(optionnel)</span></label>
+          <p style={S.hint}>Idem — ils votent pour ce qu'ils préfèrent.</p>
+          <TagInput values={activites} onChange={setActivites} placeholder="ex. ciné, balade, apéro…" maxItems={5} />
+          <button onClick={handleCreate} disabled={!canCreate} style={{ ...S.btn, opacity: canCreate ? 1 : 0.4, marginTop: 24 }}>Générer le code →</button>
+        </div>
+      );
+    }
+
+    function CodeView({ event, onBack }) {
+      const [copied, setCopied] = useState(false);
+      const shareText = `Salut ! Je veux qu'on se voit — utilise ce code pour choisir une date : ${event.id}`;
+      const copy = () => { navigator.clipboard?.writeText(shareText).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
+      return (
+        <div style={S.card}>
+          <button onClick={onBack} style={S.backLink}>← retour</button>
+          <h2 style={S.cardTitle}>{event.title}</h2>
+          <p style={{ color: "#888", fontSize: 13, marginBottom: 24 }}>Envoie ce code à tes potes.</p>
+          <div style={S.codeBlock}>{event.id}</div>
+          <button onClick={copy} style={S.btn}>{copied ? "Copié ✓" : "Copier le message"}</button>
+          <p style={{ fontSize: 11, color: "#3A3A3A", marginTop: 8, textAlign: "center" }}>"{shareText}"</p>
+        </div>
+      );
+    }
+
+    function RespondView({ onBack }) {
+      const [code, setCode] = useState("");
+      const [event, setEvent] = useState(null);
+      const [name, setName] = useState("");
+      const [chosen, setChosen] = useState([]);
+      const [chosenLieu, setChosenLieu] = useState("");
+      const [chosenActivite, setChosenActivite] = useState("");
+      const [submitted, setSubmitted] = useState(false);
+      const [error, setError] = useState("");
+      const findEvent = () => {
+        const events = loadEvents();
+        const found = events.find(e => e.id === code.toUpperCase().trim());
+        if (found) { setEvent(found); setError(""); } else setError("Code introuvable. Vérifie avec la personne qui t'a envoyé ça.");
+      };
+      const canSubmit = name.trim() && chosen.length > 0;
+      const handleSubmit = () => {
+        if (!canSubmit) return;
+        const events = loadEvents();
+        const idx = events.findIndex(e => e.id === event.id);
+        if (idx !== -1) {
+          events[idx].responses.push({ name: name.trim(), dates: chosen, lieu: chosenLieu, activite: chosenActivite, at: new Date().toISOString() });
+          saveEvents(events);
+          setSubmitted(true);
+        }
+      };
+      if (submitted) return (
+        <div style={S.card}>
+          <div style={{ textAlign: "center", padding: "24px 0" }}>
+            <div style={{ fontSize: 32, marginBottom: 16 }}>🖤</div>
+            <h2 style={{ ...S.cardTitle, marginBottom: 8 }}>C'est noté !</h2>
+            <p style={{ color: "#888", fontSize: 14 }}>{name}, tes réponses ont été envoyées.<br />On va se voir bientôt.</p>
+          </div>
+          <button onClick={onBack} style={{ ...S.btn, marginTop: 24 }}>← accueil</button>
+        </div>
+      );
+      if (event) return (
+        <div style={S.card}>
+          <button onClick={() => { setEvent(null); setCode(""); }} style={S.backLink}>← changer de code</button>
+          <h2 style={S.cardTitle}>{event.title}</h2>
+          {event.note && <p style={{ color: "#999", fontSize: 13, marginBottom: 20, fontStyle: "italic" }}>"{event.note}"</p>}
+          <label style={S.label}>Ton prénom</label>
+          <input style={S.input} placeholder="Comment tu t'appelles ?" value={name} onChange={e => setName(e.target.value)} maxLength={40} />
+          <label style={S.label}>Les dates qui t'arrangent</label>
+          <p style={S.hint}>Coche tout ce qui te convient.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+            {event.dates.map(d => {
+              const sel = chosen.includes(d);
+              return (
+                <button key={d} onClick={() => setChosen(sel ? chosen.filter(x => x !== d) : [...chosen, d])}
+                  style={{ ...S.dateChoice, background: sel ? "#C4877A22" : "transparent", borderColor: sel ? "#C4877A" : "#2A2A2A", color: sel ? "#C4877A" : "#E8E4DE" }}>
+                  <span style={{ marginRight: 10, fontSize: 14 }}>{sel ? "✓" : "○"}</span>{formatDate(d)}
+                </button>
+              );
+            })}
+          </div>
+          {event.lieux && event.lieux.length > 0 && (<>
+            <div style={S.divider} />
+            <label style={S.label}>Lieu</label>
+            <p style={S.hint}>Où tu préfères ?</p>
+            <ChipSelect options={event.lieux} value={chosenLieu} onChange={setChosenLieu} />
+          </>)}
+          {event.activites && event.activites.length > 0 && (<>
+            <div style={S.divider} />
+            <label style={S.label}>Activité</label>
+            <p style={S.hint}>Qu'est-ce qui te tente ?</p>
+            <ChipSelect options={event.activites} value={chosenActivite} onChange={setChosenActivite} />
+          </>)}
+          <button onClick={handleSubmit} disabled={!canSubmit} style={{ ...S.btn, opacity: canSubmit ? 1 : 0.4, marginTop: 20 }}>Envoyer →</button>
+        </div>
+      );
+      return (
+        <div style={S.card}>
+          <button onClick={onBack} style={S.backLink}>← retour</button>
+          <h2 style={S.cardTitle}>Entrer un code</h2>
+          <p style={{ color: "#888", fontSize: 13, marginBottom: 20 }}>Tu as reçu un code à 5 lettres ? Saisis-le ici.</p>
+          <input style={{ ...S.input, textAlign: "center", letterSpacing: "0.3em", fontSize: 22, fontFamily: "'Cormorant Garamond', serif" }}
+            placeholder="XXXXX" value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={5} />
+          {error && <p style={{ color: "#C4877A", fontSize: 12, marginTop: 4 }}>{error}</p>}
+          <button onClick={findEvent} disabled={code.length < 5} style={{ ...S.btn, opacity: code.length < 5 ? 0.4 : 1 }}>Voir les dispos →</button>
+        </div>
+      );
+    }
+
+    function HistoryView({ onBack, onSelect }) {
+      const events = loadEvents().reverse();
+      if (events.length === 0) return (
+        <div style={S.card}>
+          <button onClick={onBack} style={S.backLink}>← retour</button>
+          <p style={{ color: "#555", textAlign: "center", padding: "32px 0" }}>Aucun événement pour l'instant.</p>
+        </div>
+      );
+      return (
+        <div style={S.card}>
+          <button onClick={onBack} style={S.backLink}>← retour</button>
+          <h2 style={S.cardTitle}>Mes événements</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {events.map(e => (
+              <button key={e.id} onClick={() => onSelect(e)} style={S.eventRow}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, color: "#E8E4DE" }}>{e.title}</span>
+                  <span style={{ fontSize: 11, color: "#555", fontFamily: "monospace", letterSpacing: "0.1em" }}>{e.id}</span>
+                </div>
+                <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
+                  {e.dates.length} date{e.dates.length > 1 ? "s" : ""} · {e.responses.length} réponse{e.responses.length > 1 ? "s" : ""}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    function EventDetailView({ event: initialEvent, onBack }) {
+      const [event, setEvent] = useState(initialEvent);
+      useEffect(() => {
+        const events = loadEvents();
+        const fresh = events.find(e => e.id === initialEvent.id);
+        if (fresh) setEvent(fresh);
+      }, [initialEvent.id]);
+      const dateCounts = {};
+      event.dates.forEach(d => { dateCounts[d] = 0; });
+      event.responses.forEach(r => r.dates.forEach(d => { if (dateCounts[d] !== undefined) dateCounts[d]++; }));
+      const maxCount = Math.max(...Object.values(dateCounts), 0);
+      const lieuCounts = {};
+      const activiteCounts = {};
+      event.responses.forEach(r => {
+        if (r.lieu) lieuCounts[r.lieu] = (lieuCounts[r.lieu] || 0) + 1;
+        if (r.activite) activiteCounts[r.activite] = (activiteCounts[r.activite] || 0) + 1;
+      });
+      const maxLieu = Math.max(...Object.values(lieuCounts), 0);
+      const maxActivite = Math.max(...Object.values(activiteCounts), 0);
+      const hasLieuData = Object.keys(lieuCounts).length > 0;
+      const hasActiviteData = Object.keys(activiteCounts).length > 0;
+      return (
+        <div style={S.card}>
+          <button onClick={onBack} style={S.backLink}>← retour</button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+            <h2 style={{ ...S.cardTitle, marginBottom: 0 }}>{event.title}</h2>
+            <span style={{ fontSize: 11, color: "#555", fontFamily: "monospace", letterSpacing: "0.1em", paddingTop: 4 }}>{event.id}</span>
+          </div>
+          <p style={{ color: "#666", fontSize: 12, marginBottom: 24 }}>{event.responses.length} réponse{event.responses.length !== 1 ? "s" : ""}</p>
+          {event.responses.length === 0 ? (
+            <p style={{ color: "#444", fontSize: 13, fontStyle: "italic" }}>Personne n'a encore répondu.</p>
+          ) : (<>
+            <h3 style={S.sectionTitle}>Dates</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              {event.dates.map(d => {
+                const count = dateCounts[d];
+                const isTop = count === maxCount && maxCount > 0;
+                return (
+                  <div key={d} style={{ background: isTop ? "#C4877A22" : "#181818", border: `1px solid ${isTop ? "#C4877A55" : "#222"}`, borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#999" }}>{formatDate(d)}</span>
+                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#555" }}>{count} / {event.responses.length}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {hasLieuData && (<>
+              <h3 style={S.sectionTitle}>Lieux</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+                {Object.entries(lieuCounts).sort((a,b) => b[1]-a[1]).map(([lieu, count]) => {
+                  const isTop = count === maxLieu;
+                  return <div key={lieu} style={{ background: isTop ? "#C4877A22" : "#181818", border: `1px solid ${isTop ? "#C4877A55" : "#222"}`, borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#999" }}>{lieu}</span>
+                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#555" }}>{count}</span>
+                  </div>;
+                })}
+              </div>
+            </>)}
+            {hasActiviteData && (<>
+              <h3 style={S.sectionTitle}>Activités</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+                {Object.entries(activiteCounts).sort((a,b) => b[1]-a[1]).map(([act, count]) => {
+                  const isTop = count === maxActivite;
+                  return <div key={act} style={{ background: isTop ? "#C4877A22" : "#181818", border: `1px solid ${isTop ? "#C4877A55" : "#222"}`, borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#999" }}>{act}</span>
+                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#555" }}>{count}</span>
+                  </div>;
+                })}
+              </div>
+            </>)}
+            <h3 style={S.sectionTitle}>Réponses individuelles</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {event.responses.map((r, i) => (
+                <div key={i} style={{ background: "#181818", border: "1px solid #222", borderRadius: 10, padding: "12px 14px" }}>
+                  <div style={{ fontSize: 13, color: "#E8E4DE", marginBottom: 6 }}>{r.name}</div>
+                  {r.dates.map(d => <div key={d} style={{ fontSize: 11, color: "#666", paddingLeft: 8 }}>· {formatDate(d)}</div>)}
+                  {r.lieu && <div style={{ fontSize: 11, color: "#555", paddingLeft: 8, marginTop: 4 }}>📍 {r.lieu}</div>}
+                  {r.activite && <div style={{ fontSize: 11, color: "#555", paddingLeft: 8, marginTop: 2 }}>✦ {r.activite}</div>}
+                </div>
+              ))}
+            </div>
+          </>)}
+        </div>
+      );
+    }
+
+    function HomeView({ onNavigate }) {
+      const count = loadEvents().length;
+      return (
+        <div style={{ ...S.card, textAlign: "center" }}>
+          <div style={{ marginBottom: 32 }}>
+            <h1 style={S.hero}>on se voit ?</h1>
+            <p style={{ color: "#666", fontSize: 13, letterSpacing: "0.03em" }}>Propose des dates, un lieu, une activité.<br />Tes potes choisissent. Sans app, sans compte.</p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
+            <button onClick={() => onNavigate("create")} style={S.btnPrimary}>Créer un événement</button>
+            <button onClick={() => onNavigate("respond")} style={S.btnSecondary}>J'ai reçu un code</button>
+          </div>
+          {count > 0 && <button onClick={() => onNavigate("history")} style={S.backLink}>Mes événements ({count}) →</button>}
+        </div>
+      );
+    }
+
+    function App() {
+      const [view, setView] = useState("home");
+      const [createdEvent, setCreatedEvent] = useState(null);
+      const [selectedEvent, setSelectedEvent] = useState(null);
+      const navigate = (v) => setView(v);
+      return (
+        <div style={S.root}>
+          <div style={S.wrapper}>
+            {view === "home" && <HomeView onNavigate={navigate} />}
+            {view === "create" && <CreateView onBack={() => navigate("home")} onCreated={(e) => { setCreatedEvent(e); navigate("code"); }} />}
+            {view === "code" && createdEvent && <CodeView event={createdEvent} onBack={() => navigate("home")} />}
+            {view === "respond" && <RespondView onBack={() => navigate("home")} />}
+            {view === "history" && <HistoryView onBack={() => navigate("home")} onSelect={(e) => { setSelectedEvent(e); navigate("detail"); }} />}
+            {view === "detail" && selectedEvent && <EventDetailView event={selectedEvent} onBack={() => navigate("history")} />}
+          </div>
+        </div>
+      );
+    }
+
+    const S = {
+      root: { minHeight: "100vh", background: "#0E0E0E", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "32px 16px 64px", fontFamily: "'Inter', sans-serif" },
+      wrapper: { width: "100%", maxWidth: 400 },
+      card: { background: "#141414", border: "1px solid #1E1E1E", borderRadius: 16, padding: "28px 24px" },
+      hero: { fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, color: "#E8E4DE", letterSpacing: "-0.01em", lineHeight: 1, marginBottom: 12, fontStyle: "italic" },
+      cardTitle: { fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: 26, color: "#E8E4DE", marginBottom: 20, letterSpacing: "0.01em" },
+      sectionTitle: { fontSize: 11, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10, fontWeight: 500 },
+      label: { display: "block", fontSize: 11, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, marginTop: 16 },
+      hint: { fontSize: 12, color: "#555", marginBottom: 10 },
+      input: { width: "100%", background: "#1A1A1A", border: "1px solid #242424", borderRadius: 10, padding: "12px 14px", color: "#E8E4DE", fontSize: 14, fontFamily: "'Inter', sans-serif", marginBottom: 4, transition: "border-color 0.2s" },
+      btn: { width: "100%", background: "#C4877A", color: "#0E0E0E", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 500, cursor: "pointer", marginTop: 8, letterSpacing: "0.02em", transition: "opacity 0.2s" },
+      btnPrimary: { width: "100%", background: "#C4877A", color: "#0E0E0E", border: "none", borderRadius: 10, padding: "16px", fontSize: 15, fontWeight: 500, cursor: "pointer", letterSpacing: "0.02em" },
+      btnSecondary: { width: "100%", background: "transparent", color: "#888", border: "1px solid #222", borderRadius: 10, padding: "16px", fontSize: 15, cursor: "pointer", letterSpacing: "0.02em" },
+      backLink: { background: "none", border: "none", color: "#555", fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 20, display: "block", letterSpacing: "0.03em" },
+      navBtn: { background: "none", border: "1px solid #242424", color: "#888", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" },
+      dayCell: { borderRadius: 8, padding: "8px 0", fontSize: 13, cursor: "pointer", transition: "all 0.15s", fontFamily: "'Inter', sans-serif" },
+      dateTag: { display: "inline-block", background: "#C4877A22", color: "#C4877A", border: "1px solid #C4877A44", borderRadius: 20, padding: "4px 10px", fontSize: 11, marginRight: 6, marginTop: 6 },
+      dateChoice: { background: "transparent", border: "1px solid #2A2A2A", borderRadius: 10, padding: "13px 16px", textAlign: "left", cursor: "pointer", fontSize: 13, fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", transition: "all 0.15s" },
+      codeBlock: { background: "#181818", border: "1px solid #2A2A2A", borderRadius: 12, padding: "24px", textAlign: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 40, color: "#E8E4DE", letterSpacing: "0.25em", marginBottom: 16 },
+      eventRow: { background: "#181818", border: "1px solid #1E1E1E", borderRadius: 10, padding: "14px 16px", textAlign: "left", cursor: "pointer", width: "100%", transition: "border-color 0.15s" },
+      tagChip: { display: "inline-flex", alignItems: "center", gap: 6, background: "#1E1E1E", border: "1px solid #2A2A2A", borderRadius: 20, padding: "4px 10px 4px 12px", fontSize: 12, color: "#C4877A" },
+      tagRemove: { background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0 },
+      chip: { background: "transparent", border: "1px solid #2A2A2A", borderRadius: 20, padding: "7px 14px", fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", transition: "all 0.15s" },
+      divider: { borderTop: "1px solid #1E1E1E", marginTop: 20, marginBottom: 4 },
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
