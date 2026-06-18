@@ -1,485 +1,551 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>on se voit ?</title>
+  <meta name="description" content="Les plannings d'adulte c'est compliqué." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0E0E0E; font-family: 'Inter', sans-serif; }
-    button:focus-visible { outline: 1px solid #C4877A; outline-offset: 2px; }
-    input:focus, textarea:focus { outline: none; border-color: #C4877A44 !important; }
+    html, body { background: #0E0E0E; min-height: 100%; font-family: 'Inter', sans-serif; color: #E8E4DE; }
+    button { font-family: 'Inter', sans-serif; cursor: pointer; }
+    input, textarea { font-family: 'Inter', sans-serif; }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #0E0E0E; }
     ::-webkit-scrollbar-thumb { background: #2A2A2A; }
+
+    #app { display: flex; justify-content: center; padding: 32px 16px 64px; min-height: 100vh; }
+    .wrap { width: 100%; max-width: 400px; }
+
+    .card { background: #141414; border: 1px solid #1E1E1E; border-radius: 16px; padding: 28px 24px; }
+    .hero { font-family: 'Cormorant Garamond', serif; font-weight: 300; font-size: 48px; color: #E8E4DE; line-height: 1; margin-bottom: 12px; font-style: italic; letter-spacing: -0.01em; }
+    .tagline { color: #666; font-size: 13px; letter-spacing: 0.03em; line-height: 1.6; margin-bottom: 32px; }
+    .card-title { font-family: 'Cormorant Garamond', serif; font-weight: 400; font-size: 26px; color: #E8E4DE; margin-bottom: 20px; }
+    .section-title { font-size: 11px; color: #555; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; font-weight: 500; margin-top: 20px; }
+    .label { display: block; font-size: 11px; color: #666; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; margin-top: 16px; }
+    .hint { font-size: 12px; color: #555; margin-bottom: 10px; }
+
+    .input { width: 100%; background: #1A1A1A; border: 1px solid #242424; border-radius: 10px; padding: 12px 14px; color: #E8E4DE; font-size: 14px; transition: border-color 0.2s; }
+    .input:focus { outline: none; border-color: #C4877A44; }
+    textarea.input { resize: none; height: 68px; }
+
+    .btn { width: 100%; background: #C4877A; color: #0E0E0E; border: none; border-radius: 10px; padding: 14px; font-size: 14px; font-weight: 500; letter-spacing: 0.02em; transition: opacity 0.2s; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-secondary { width: 100%; background: transparent; color: #888; border: 1px solid #222; border-radius: 10px; padding: 16px; font-size: 15px; }
+    .btn-back { background: none; border: none; color: #555; font-size: 12px; padding: 0; margin-bottom: 20px; display: block; letter-spacing: 0.03em; }
+
+    .nav-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .nav-btn { background: none; border: 1px solid #242424; color: #888; border-radius: 8px; width: 32px; height: 32px; font-size: 18px; line-height: 1; }
+    .month-label { font-family: 'Cormorant Garamond', serif; font-size: 17px; color: #E8E4DE; text-transform: capitalize; letter-spacing: 0.04em; }
+
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-head { text-align: center; font-size: 10px; color: #555; padding: 4px 0; letter-spacing: 0.08em; }
+    .day-cell { border-radius: 8px; padding: 8px 0; font-size: 13px; text-align: center; background: #1E1E1E; color: #E8E4DE; border: 1px solid #2A2A2A; transition: all 0.15s; }
+    .day-cell:disabled { color: #333; cursor: default; background: #181818; border-color: #1A1A1A; }
+    .day-cell.selected { background: #C4877A; color: #0E0E0E; border-color: #C4877A; }
+
+    .date-tag { display: inline-block; background: #C4877A22; color: #C4877A; border: 1px solid #C4877A44; border-radius: 20px; padding: 4px 10px; font-size: 11px; margin-right: 6px; margin-top: 6px; }
+    .date-tags { margin-top: 6px; margin-bottom: 12px; }
+
+    .divider { border-top: 1px solid #1E1E1E; margin-top: 20px; margin-bottom: 4px; }
+
+    .tag-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .tag-add-btn { background: #222; color: #444; border: none; border-radius: 10px; padding: 0 16px; font-size: 18px; flex-shrink: 0; transition: all 0.15s; }
+    .tag-add-btn.active { background: #C4877A; color: #0E0E0E; }
+    .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .tag-chip { display: inline-flex; align-items: center; gap: 6px; background: #1E1E1E; border: 1px solid #2A2A2A; border-radius: 20px; padding: 4px 10px 4px 12px; font-size: 12px; color: #C4877A; }
+    .tag-remove { background: none; border: none; color: #555; font-size: 14px; line-height: 1; padding: 0; }
+
+    .chip-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .chip { background: transparent; border: 1px solid #2A2A2A; border-radius: 20px; padding: 7px 14px; font-size: 13px; color: #888; transition: all 0.15s; }
+    .chip.selected { background: #C4877A22; border-color: #C4877A; color: #C4877A; }
+
+    .date-choice { background: transparent; border: 1px solid #2A2A2A; border-radius: 10px; padding: 13px 16px; text-align: left; font-size: 13px; width: 100%; display: flex; align-items: center; transition: all 0.15s; color: #E8E4DE; margin-bottom: 8px; }
+    .date-choice.selected { background: #C4877A22; border-color: #C4877A; color: #C4877A; }
+    .date-choice .check { margin-right: 10px; font-size: 14px; }
+
+    .code-block { background: #181818; border: 1px solid #2A2A2A; border-radius: 12px; padding: 24px; text-align: center; font-family: 'Cormorant Garamond', serif; font-size: 40px; color: #E8E4DE; letter-spacing: 0.25em; margin-bottom: 16px; }
+    .code-input { text-align: center; letter-spacing: 0.3em; font-size: 22px; font-family: 'Cormorant Garamond', serif; }
+    .error-msg { color: #C4877A; font-size: 12px; margin-top: 4px; margin-bottom: 4px; }
+
+    .event-row { background: #181818; border: 1px solid #1E1E1E; border-radius: 10px; padding: 14px 16px; text-align: left; width: 100%; margin-bottom: 12px; transition: border-color 0.15s; color: #E8E4DE; }
+    .event-row:hover { border-color: #2A2A2A; }
+    .event-row-title { font-family: 'Cormorant Garamond', serif; font-size: 17px; }
+    .event-row-meta { font-size: 12px; color: #666; margin-top: 6px; }
+    .event-row-code { font-size: 11px; color: #555; font-family: monospace; letter-spacing: 0.1em; }
+
+    .result-row { background: #181818; border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border: 1px solid #222; }
+    .result-row.top { background: #C4877A22; border-color: #C4877A55; }
+    .result-row .label-text { font-size: 13px; color: #999; }
+    .result-row.top .label-text { color: #C4877A; }
+    .result-row .count { font-size: 13px; color: #555; }
+    .result-row.top .count { color: #C4877A; }
+
+    .response-card { background: #181818; border: 1px solid #222; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+    .response-name { font-size: 13px; color: #E8E4DE; margin-bottom: 6px; }
+    .response-detail { font-size: 11px; color: #666; padding-left: 8px; margin-top: 2px; }
+    .response-detail.meta { color: #555; }
+
+    .success-icon { font-size: 32px; margin-bottom: 16px; }
+    .success-title { font-family: 'Cormorant Garamond', serif; font-size: 26px; color: #E8E4DE; margin-bottom: 8px; }
+    .success-text { color: #888; font-size: 14px; line-height: 1.6; }
+    .success-center { text-align: center; padding: 24px 0; }
+
+    .share-hint { font-size: 11px; color: #3A3A3A; margin-top: 8px; text-align: center; }
+    .flex-between { display: flex; justify-content: space-between; align-items: flex-start; }
+    .responses-count { color: #666; font-size: 12px; margin-bottom: 24px; }
+    .empty-state { color: #444; font-size: 13px; font-style: italic; }
+    .mt8 { margin-top: 8px; }
+    .mt16 { margin-top: 16px; }
+    .mt20 { margin-top: 20px; }
+    .mt24 { margin-top: 24px; }
+    .mb16 { margin-bottom: 16px; }
+    .mb20 { margin-bottom: 20px; }
+    .mb24 { margin-bottom: 24px; }
+    .history-link { background: none; border: none; color: #555; font-size: 12px; padding: 0; letter-spacing: 0.03em; margin-top: 4px; }
+    .btns-col { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+    .italic { font-style: italic; }
+    .mono { font-family: monospace; }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+<div id="app"><div class="wrap" id="root"></div></div>
 
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+<script>
+const STORAGE_KEY = "dispo_events_v2";
 
-    const STORAGE_KEY = "dispo_events";
+function loadEvents() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+}
+function saveEvents(e) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(e)); } catch {}
+}
+function generateCode() {
+  return Math.random().toString(36).substring(2, 7).toUpperCase();
+}
+function formatDate(d) {
+  return new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+}
+function toISO(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
+function getDaysInMonth(y, m) { return new Date(y, m+1, 0).getDate(); }
+function el(tag, props, ...children) {
+  const e = document.createElement(tag);
+  if (props) Object.entries(props).forEach(([k, v]) => {
+    if (k === "class") e.className = v;
+    else if (k === "style") Object.assign(e.style, v);
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
+    else e.setAttribute(k, v);
+  });
+  children.flat().forEach(c => { if (c != null) e.append(typeof c === "string" ? c : c); });
+  return e;
+}
+function div(cls, ...children) { return el("div", { class: cls }, ...children); }
+function btn(cls, text, onClick, disabled) {
+  const b = el("button", { class: cls }, text);
+  if (onClick) b.addEventListener("click", onClick);
+  if (disabled) b.disabled = true;
+  return b;
+}
 
-    function loadEvents() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
-      } catch { return []; }
-    }
+// ── State ────────────────────────────────────────────────────────────────
+let state = { view: "home", createdEvent: null, selectedEvent: null };
+function render() {
+  const root = document.getElementById("root");
+  root.innerHTML = "";
+  const views = { home: HomeView, create: CreateView, code: CodeView, respond: RespondView, history: HistoryView, detail: DetailView };
+  root.appendChild((views[state.view] || HomeView)());
+}
+function navigate(view, extra) { state = { ...state, view, ...extra }; render(); }
 
-    function saveEvents(events) {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); } catch {}
-    }
+// ── Calendar ─────────────────────────────────────────────────────────────
+function Calendar(selected, onChange) {
+  const today = new Date();
+  let year = today.getFullYear(), month = today.getMonth();
+  const min = toISO(today.getFullYear(), today.getMonth(), today.getDate());
 
-    function generateCode() {
-      return Math.random().toString(36).substring(2, 7).toUpperCase();
-    }
+  const wrap = div("", );
+  function draw() {
+    wrap.innerHTML = "";
+    const monthLabel = new Date(year, month).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    const navRow = div("nav-row");
+    const prevBtn = btn("nav-btn", "‹", () => { if (month === 0) { year--; month = 11; } else month--; draw(); });
+    const nextBtn = btn("nav-btn", "›", () => { if (month === 11) { year++; month = 0; } else month++; draw(); });
+    navRow.append(prevBtn, el("span", { class: "month-label" }, monthLabel), nextBtn);
+    wrap.appendChild(navRow);
 
-    function formatDate(d) {
-      const date = new Date(d + "T12:00:00");
-      return date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-    }
+    const grid = div("cal-grid");
+    ["Lu","Ma","Me","Je","Ve","Sa","Di"].forEach(d => grid.appendChild(el("div", { class: "cal-head" }, d)));
 
-    function getDaysInMonth(year, month) {
-      return new Date(year, month + 1, 0).getDate();
-    }
-
-    function toISO(year, month, day) {
-      return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    }
-
-    function TagInput({ values, onChange, placeholder, maxItems = 5 }) {
-      const [input, setInput] = useState("");
-      const add = () => {
-        const v = input.trim();
-        if (!v || values.includes(v) || values.length >= maxItems) return;
-        onChange([...values, v]);
-        setInput("");
-      };
-      const remove = (v) => onChange(values.filter(x => x !== v));
-      return (
-        <div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input
-              style={{ ...S.input, flex: 1, marginBottom: 0 }}
-              placeholder={placeholder}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-              maxLength={50}
-            />
-            <button onClick={add} disabled={!input.trim() || values.length >= maxItems}
-              style={{ background: input.trim() && values.length < maxItems ? "#C4877A" : "#222", color: input.trim() && values.length < maxItems ? "#0E0E0E" : "#444", border: "none", borderRadius: 10, padding: "0 16px", cursor: input.trim() && values.length < maxItems ? "pointer" : "default", fontSize: 18, flexShrink: 0 }}>+</button>
-          </div>
-          {values.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {values.map(v => (
-                <span key={v} style={S.tagChip}>
-                  {v}
-                  <button onClick={() => remove(v)} style={S.tagRemove}>×</button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    function ChipSelect({ options, value, onChange }) {
-      const [otherVal, setOtherVal] = useState("");
-      const [showOther, setShowOther] = useState(false);
-      const isOther = value && !options.includes(value);
-      return (
-        <div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: showOther ? 10 : 0 }}>
-            {options.map(o => {
-              const sel = value === o;
-              return (
-                <button key={o} onClick={() => { onChange(o); setShowOther(false); }}
-                  style={{ ...S.chip, background: sel ? "#C4877A22" : "transparent", borderColor: sel ? "#C4877A" : "#2A2A2A", color: sel ? "#C4877A" : "#888" }}>{o}</button>
-              );
-            })}
-            <button onClick={() => { setShowOther(s => !s); if (!showOther) onChange(""); }}
-              style={{ ...S.chip, background: (showOther || isOther) ? "#C4877A22" : "transparent", borderColor: (showOther || isOther) ? "#C4877A" : "#2A2A2A", color: (showOther || isOther) ? "#C4877A" : "#555" }}>autre…</button>
-          </div>
-          {(showOther || isOther) && (
-            <input style={{ ...S.input, marginTop: 6 }} placeholder="Précise ici…"
-              value={isOther ? value : otherVal}
-              onChange={e => { setOtherVal(e.target.value); onChange(e.target.value); }}
-              maxLength={60} autoFocus />
-          )}
-        </div>
-      );
-    }
-
-    function CalendarPicker({ selected, onChange }) {
-      const today = new Date();
-      const [year, setYear] = useState(today.getFullYear());
-      const [month, setMonth] = useState(today.getMonth());
-      const min = toISO(today.getFullYear(), today.getMonth(), today.getDate());
-      const daysInMonth = getDaysInMonth(year, month);
-      const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7;
-      const cells = [];
-      for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
-      for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-      const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11); } else setMonth(m => m - 1); };
-      const nextMonth = () => { if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1); };
-      const monthLabel = new Date(year, month).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-      return (
-        <div style={{ width: "100%" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <button onClick={prevMonth} style={S.navBtn}>‹</button>
-            <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, color: "#E8E4DE", textTransform: "capitalize", letterSpacing: "0.04em" }}>{monthLabel}</span>
-            <button onClick={nextMonth} style={S.navBtn}>›</button>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 6 }}>
-            {["Lu","Ma","Me","Je","Ve","Sa","Di"].map(d => (
-              <div key={d} style={{ textAlign: "center", fontSize: 10, color: "#555", padding: "4px 0", letterSpacing: "0.08em" }}>{d}</div>
-            ))}
-            {cells.map((day, i) => {
-              if (!day) return <div key={`e${i}`} />;
-              const iso = toISO(year, month, day);
-              const isPast = iso < min;
-              const isSel = selected.includes(iso);
-              return (
-                <button key={iso} disabled={isPast}
-                  onClick={() => { if (isSel) onChange(selected.filter(d => d !== iso)); else onChange([...selected, iso].sort()); }}
-                  style={{ ...S.dayCell, background: isSel ? "#C4877A" : "#1E1E1E", color: isPast ? "#333" : isSel ? "#0E0E0E" : "#E8E4DE", cursor: isPast ? "default" : "pointer", border: isSel ? "1px solid #C4877A" : "1px solid #2A2A2A" }}>{day}</button>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
-    function CreateView({ onCreated, onBack }) {
-      const [title, setTitle] = useState("");
-      const [note, setNote] = useState("");
-      const [selectedDates, setSelectedDates] = useState([]);
-      const [lieux, setLieux] = useState([]);
-      const [activites, setActivites] = useState([]);
-      const canCreate = title.trim() && selectedDates.length > 0;
-      const handleCreate = () => {
-        if (!canCreate) return;
-        const code = generateCode();
-        const event = { id: code, title: title.trim(), note: note.trim(), dates: selectedDates, lieux, activites, responses: [], createdAt: new Date().toISOString() };
-        const events = loadEvents();
-        events.push(event);
-        saveEvents(events);
-        onCreated(event);
-      };
-      return (
-        <div style={S.card}>
-          <button onClick={onBack} style={S.backLink}>← retour</button>
-          <h2 style={S.cardTitle}>Nouvel événement</h2>
-          <label style={S.label}>Un titre pour l'occasion</label>
-          <input style={S.input} placeholder="ex. apéro juillet, ciné cette semaine…" value={title} onChange={e => setTitle(e.target.value)} maxLength={60} />
-          <label style={S.label}>Un mot (optionnel)</label>
-          <textarea style={{ ...S.input, height: 68, resize: "none" }} placeholder="ex. ça fait longtemps, on s'organise ?" value={note} onChange={e => setNote(e.target.value)} maxLength={200} />
-          <label style={S.label}>Tes dispos</label>
-          <CalendarPicker selected={selectedDates} onChange={setSelectedDates} />
-          {selectedDates.length > 0 && (
-            <div style={{ marginTop: 6, marginBottom: 12 }}>
-              {selectedDates.map(d => <span key={d} style={S.dateTag}>{formatDate(d)}</span>)}
-            </div>
-          )}
-          <div style={S.divider} />
-          <label style={S.label}>Lieux possibles <span style={{ color: "#444", textTransform: "none", letterSpacing: 0 }}>(optionnel)</span></label>
-          <p style={S.hint}>Ajoute des idées — tes potes choisiront. Entrée ou +</p>
-          <TagInput values={lieux} onChange={setLieux} placeholder="ex. chez moi, le café du Théâtre…" maxItems={5} />
-          <div style={S.divider} />
-          <label style={S.label}>Activités possibles <span style={{ color: "#444", textTransform: "none", letterSpacing: 0 }}>(optionnel)</span></label>
-          <p style={S.hint}>Idem — ils votent pour ce qu'ils préfèrent.</p>
-          <TagInput values={activites} onChange={setActivites} placeholder="ex. ciné, balade, apéro…" maxItems={5} />
-          <button onClick={handleCreate} disabled={!canCreate} style={{ ...S.btn, opacity: canCreate ? 1 : 0.4, marginTop: 24 }}>Générer le code →</button>
-        </div>
-      );
-    }
-
-    function CodeView({ event, onBack }) {
-      const [copied, setCopied] = useState(false);
-      const shareText = `Salut ! Je veux qu'on se voit — utilise ce code pour choisir une date : ${event.id}`;
-      const copy = () => { navigator.clipboard?.writeText(shareText).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); };
-      return (
-        <div style={S.card}>
-          <button onClick={onBack} style={S.backLink}>← retour</button>
-          <h2 style={S.cardTitle}>{event.title}</h2>
-          <p style={{ color: "#888", fontSize: 13, marginBottom: 24 }}>Envoie ce code à tes potes.</p>
-          <div style={S.codeBlock}>{event.id}</div>
-          <button onClick={copy} style={S.btn}>{copied ? "Copié ✓" : "Copier le message"}</button>
-          <p style={{ fontSize: 11, color: "#3A3A3A", marginTop: 8, textAlign: "center" }}>"{shareText}"</p>
-        </div>
-      );
-    }
-
-    function RespondView({ onBack }) {
-      const [code, setCode] = useState("");
-      const [event, setEvent] = useState(null);
-      const [name, setName] = useState("");
-      const [chosen, setChosen] = useState([]);
-      const [chosenLieu, setChosenLieu] = useState("");
-      const [chosenActivite, setChosenActivite] = useState("");
-      const [submitted, setSubmitted] = useState(false);
-      const [error, setError] = useState("");
-      const findEvent = () => {
-        const events = loadEvents();
-        const found = events.find(e => e.id === code.toUpperCase().trim());
-        if (found) { setEvent(found); setError(""); } else setError("Code introuvable. Vérifie avec la personne qui t'a envoyé ça.");
-      };
-      const canSubmit = name.trim() && chosen.length > 0;
-      const handleSubmit = () => {
-        if (!canSubmit) return;
-        const events = loadEvents();
-        const idx = events.findIndex(e => e.id === event.id);
-        if (idx !== -1) {
-          events[idx].responses.push({ name: name.trim(), dates: chosen, lieu: chosenLieu, activite: chosenActivite, at: new Date().toISOString() });
-          saveEvents(events);
-          setSubmitted(true);
-        }
-      };
-      if (submitted) return (
-        <div style={S.card}>
-          <div style={{ textAlign: "center", padding: "24px 0" }}>
-            <div style={{ fontSize: 32, marginBottom: 16 }}>🖤</div>
-            <h2 style={{ ...S.cardTitle, marginBottom: 8 }}>C'est noté !</h2>
-            <p style={{ color: "#888", fontSize: 14 }}>{name}, tes réponses ont été envoyées.<br />On va se voir bientôt.</p>
-          </div>
-          <button onClick={onBack} style={{ ...S.btn, marginTop: 24 }}>← accueil</button>
-        </div>
-      );
-      if (event) return (
-        <div style={S.card}>
-          <button onClick={() => { setEvent(null); setCode(""); }} style={S.backLink}>← changer de code</button>
-          <h2 style={S.cardTitle}>{event.title}</h2>
-          {event.note && <p style={{ color: "#999", fontSize: 13, marginBottom: 20, fontStyle: "italic" }}>"{event.note}"</p>}
-          <label style={S.label}>Ton prénom</label>
-          <input style={S.input} placeholder="Comment tu t'appelles ?" value={name} onChange={e => setName(e.target.value)} maxLength={40} />
-          <label style={S.label}>Les dates qui t'arrangent</label>
-          <p style={S.hint}>Coche tout ce qui te convient.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
-            {event.dates.map(d => {
-              const sel = chosen.includes(d);
-              return (
-                <button key={d} onClick={() => setChosen(sel ? chosen.filter(x => x !== d) : [...chosen, d])}
-                  style={{ ...S.dateChoice, background: sel ? "#C4877A22" : "transparent", borderColor: sel ? "#C4877A" : "#2A2A2A", color: sel ? "#C4877A" : "#E8E4DE" }}>
-                  <span style={{ marginRight: 10, fontSize: 14 }}>{sel ? "✓" : "○"}</span>{formatDate(d)}
-                </button>
-              );
-            })}
-          </div>
-          {event.lieux && event.lieux.length > 0 && (<>
-            <div style={S.divider} />
-            <label style={S.label}>Lieu</label>
-            <p style={S.hint}>Où tu préfères ?</p>
-            <ChipSelect options={event.lieux} value={chosenLieu} onChange={setChosenLieu} />
-          </>)}
-          {event.activites && event.activites.length > 0 && (<>
-            <div style={S.divider} />
-            <label style={S.label}>Activité</label>
-            <p style={S.hint}>Qu'est-ce qui te tente ?</p>
-            <ChipSelect options={event.activites} value={chosenActivite} onChange={setChosenActivite} />
-          </>)}
-          <button onClick={handleSubmit} disabled={!canSubmit} style={{ ...S.btn, opacity: canSubmit ? 1 : 0.4, marginTop: 20 }}>Envoyer →</button>
-        </div>
-      );
-      return (
-        <div style={S.card}>
-          <button onClick={onBack} style={S.backLink}>← retour</button>
-          <h2 style={S.cardTitle}>Entrer un code</h2>
-          <p style={{ color: "#888", fontSize: 13, marginBottom: 20 }}>Tu as reçu un code à 5 lettres ? Saisis-le ici.</p>
-          <input style={{ ...S.input, textAlign: "center", letterSpacing: "0.3em", fontSize: 22, fontFamily: "'Cormorant Garamond', serif" }}
-            placeholder="XXXXX" value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={5} />
-          {error && <p style={{ color: "#C4877A", fontSize: 12, marginTop: 4 }}>{error}</p>}
-          <button onClick={findEvent} disabled={code.length < 5} style={{ ...S.btn, opacity: code.length < 5 ? 0.4 : 1 }}>Voir les dispos →</button>
-        </div>
-      );
-    }
-
-    function HistoryView({ onBack, onSelect }) {
-      const events = loadEvents().reverse();
-      if (events.length === 0) return (
-        <div style={S.card}>
-          <button onClick={onBack} style={S.backLink}>← retour</button>
-          <p style={{ color: "#555", textAlign: "center", padding: "32px 0" }}>Aucun événement pour l'instant.</p>
-        </div>
-      );
-      return (
-        <div style={S.card}>
-          <button onClick={onBack} style={S.backLink}>← retour</button>
-          <h2 style={S.cardTitle}>Mes événements</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {events.map(e => (
-              <button key={e.id} onClick={() => onSelect(e)} style={S.eventRow}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, color: "#E8E4DE" }}>{e.title}</span>
-                  <span style={{ fontSize: 11, color: "#555", fontFamily: "monospace", letterSpacing: "0.1em" }}>{e.id}</span>
-                </div>
-                <div style={{ marginTop: 6, fontSize: 12, color: "#666" }}>
-                  {e.dates.length} date{e.dates.length > 1 ? "s" : ""} · {e.responses.length} réponse{e.responses.length > 1 ? "s" : ""}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    function EventDetailView({ event: initialEvent, onBack }) {
-      const [event, setEvent] = useState(initialEvent);
-      useEffect(() => {
-        const events = loadEvents();
-        const fresh = events.find(e => e.id === initialEvent.id);
-        if (fresh) setEvent(fresh);
-      }, [initialEvent.id]);
-      const dateCounts = {};
-      event.dates.forEach(d => { dateCounts[d] = 0; });
-      event.responses.forEach(r => r.dates.forEach(d => { if (dateCounts[d] !== undefined) dateCounts[d]++; }));
-      const maxCount = Math.max(...Object.values(dateCounts), 0);
-      const lieuCounts = {};
-      const activiteCounts = {};
-      event.responses.forEach(r => {
-        if (r.lieu) lieuCounts[r.lieu] = (lieuCounts[r.lieu] || 0) + 1;
-        if (r.activite) activiteCounts[r.activite] = (activiteCounts[r.activite] || 0) + 1;
+    const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
+    for (let i = 0; i < firstDay; i++) grid.appendChild(div(""));
+    const days = getDaysInMonth(year, month);
+    for (let d = 1; d <= days; d++) {
+      const iso = toISO(year, month, d);
+      const isPast = iso < min;
+      const isSel = selected.includes(iso);
+      const cell = btn("day-cell" + (isSel ? " selected" : ""), String(d));
+      if (isPast) cell.disabled = true;
+      else cell.addEventListener("click", () => {
+        if (selected.includes(iso)) selected = selected.filter(x => x !== iso);
+        else selected = [...selected, iso].sort();
+        onChange(selected);
+        draw();
       });
-      const maxLieu = Math.max(...Object.values(lieuCounts), 0);
-      const maxActivite = Math.max(...Object.values(activiteCounts), 0);
-      const hasLieuData = Object.keys(lieuCounts).length > 0;
-      const hasActiviteData = Object.keys(activiteCounts).length > 0;
-      return (
-        <div style={S.card}>
-          <button onClick={onBack} style={S.backLink}>← retour</button>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-            <h2 style={{ ...S.cardTitle, marginBottom: 0 }}>{event.title}</h2>
-            <span style={{ fontSize: 11, color: "#555", fontFamily: "monospace", letterSpacing: "0.1em", paddingTop: 4 }}>{event.id}</span>
-          </div>
-          <p style={{ color: "#666", fontSize: 12, marginBottom: 24 }}>{event.responses.length} réponse{event.responses.length !== 1 ? "s" : ""}</p>
-          {event.responses.length === 0 ? (
-            <p style={{ color: "#444", fontSize: 13, fontStyle: "italic" }}>Personne n'a encore répondu.</p>
-          ) : (<>
-            <h3 style={S.sectionTitle}>Dates</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-              {event.dates.map(d => {
-                const count = dateCounts[d];
-                const isTop = count === maxCount && maxCount > 0;
-                return (
-                  <div key={d} style={{ background: isTop ? "#C4877A22" : "#181818", border: `1px solid ${isTop ? "#C4877A55" : "#222"}`, borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#999" }}>{formatDate(d)}</span>
-                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#555" }}>{count} / {event.responses.length}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {hasLieuData && (<>
-              <h3 style={S.sectionTitle}>Lieux</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-                {Object.entries(lieuCounts).sort((a,b) => b[1]-a[1]).map(([lieu, count]) => {
-                  const isTop = count === maxLieu;
-                  return <div key={lieu} style={{ background: isTop ? "#C4877A22" : "#181818", border: `1px solid ${isTop ? "#C4877A55" : "#222"}`, borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#999" }}>{lieu}</span>
-                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#555" }}>{count}</span>
-                  </div>;
-                })}
-              </div>
-            </>)}
-            {hasActiviteData && (<>
-              <h3 style={S.sectionTitle}>Activités</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
-                {Object.entries(activiteCounts).sort((a,b) => b[1]-a[1]).map(([act, count]) => {
-                  const isTop = count === maxActivite;
-                  return <div key={act} style={{ background: isTop ? "#C4877A22" : "#181818", border: `1px solid ${isTop ? "#C4877A55" : "#222"}`, borderRadius: 8, padding: "10px 14px", display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#999" }}>{act}</span>
-                    <span style={{ fontSize: 13, color: isTop ? "#C4877A" : "#555" }}>{count}</span>
-                  </div>;
-                })}
-              </div>
-            </>)}
-            <h3 style={S.sectionTitle}>Réponses individuelles</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {event.responses.map((r, i) => (
-                <div key={i} style={{ background: "#181818", border: "1px solid #222", borderRadius: 10, padding: "12px 14px" }}>
-                  <div style={{ fontSize: 13, color: "#E8E4DE", marginBottom: 6 }}>{r.name}</div>
-                  {r.dates.map(d => <div key={d} style={{ fontSize: 11, color: "#666", paddingLeft: 8 }}>· {formatDate(d)}</div>)}
-                  {r.lieu && <div style={{ fontSize: 11, color: "#555", paddingLeft: 8, marginTop: 4 }}>📍 {r.lieu}</div>}
-                  {r.activite && <div style={{ fontSize: 11, color: "#555", paddingLeft: 8, marginTop: 2 }}>✦ {r.activite}</div>}
-                </div>
-              ))}
-            </div>
-          </>)}
-        </div>
-      );
+      grid.appendChild(cell);
     }
+    wrap.appendChild(grid);
+  }
+  draw();
+  return wrap;
+}
 
-    function HomeView({ onNavigate }) {
-      const count = loadEvents().length;
-      return (
-        <div style={{ ...S.card, textAlign: "center" }}>
-          <div style={{ marginBottom: 32 }}>
-            <h1 style={S.hero}>on se voit ?</h1>
-            <p style={{ color: "#666", fontSize: 13, letterSpacing: "0.03em" }}>Propose des dates, un lieu, une activité.<br />Tes potes choisissent. Sans app, sans compte.</p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 28 }}>
-            <button onClick={() => onNavigate("create")} style={S.btnPrimary}>Créer un événement</button>
-            <button onClick={() => onNavigate("respond")} style={S.btnSecondary}>J'ai reçu un code</button>
-          </div>
-          {count > 0 && <button onClick={() => onNavigate("history")} style={S.backLink}>Mes événements ({count}) →</button>}
-        </div>
-      );
-    }
-
-    function App() {
-      const [view, setView] = useState("home");
-      const [createdEvent, setCreatedEvent] = useState(null);
-      const [selectedEvent, setSelectedEvent] = useState(null);
-      const navigate = (v) => setView(v);
-      return (
-        <div style={S.root}>
-          <div style={S.wrapper}>
-            {view === "home" && <HomeView onNavigate={navigate} />}
-            {view === "create" && <CreateView onBack={() => navigate("home")} onCreated={(e) => { setCreatedEvent(e); navigate("code"); }} />}
-            {view === "code" && createdEvent && <CodeView event={createdEvent} onBack={() => navigate("home")} />}
-            {view === "respond" && <RespondView onBack={() => navigate("home")} />}
-            {view === "history" && <HistoryView onBack={() => navigate("home")} onSelect={(e) => { setSelectedEvent(e); navigate("detail"); }} />}
-            {view === "detail" && selectedEvent && <EventDetailView event={selectedEvent} onBack={() => navigate("history")} />}
-          </div>
-        </div>
-      );
-    }
-
-    const S = {
-      root: { minHeight: "100vh", background: "#0E0E0E", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "32px 16px 64px", fontFamily: "'Inter', sans-serif" },
-      wrapper: { width: "100%", maxWidth: 400 },
-      card: { background: "#141414", border: "1px solid #1E1E1E", borderRadius: 16, padding: "28px 24px" },
-      hero: { fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 48, color: "#E8E4DE", letterSpacing: "-0.01em", lineHeight: 1, marginBottom: 12, fontStyle: "italic" },
-      cardTitle: { fontFamily: "'Cormorant Garamond', serif", fontWeight: 400, fontSize: 26, color: "#E8E4DE", marginBottom: 20, letterSpacing: "0.01em" },
-      sectionTitle: { fontSize: 11, color: "#555", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10, fontWeight: 500 },
-      label: { display: "block", fontSize: 11, color: "#666", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6, marginTop: 16 },
-      hint: { fontSize: 12, color: "#555", marginBottom: 10 },
-      input: { width: "100%", background: "#1A1A1A", border: "1px solid #242424", borderRadius: 10, padding: "12px 14px", color: "#E8E4DE", fontSize: 14, fontFamily: "'Inter', sans-serif", marginBottom: 4, transition: "border-color 0.2s" },
-      btn: { width: "100%", background: "#C4877A", color: "#0E0E0E", border: "none", borderRadius: 10, padding: "14px", fontSize: 14, fontWeight: 500, cursor: "pointer", marginTop: 8, letterSpacing: "0.02em", transition: "opacity 0.2s" },
-      btnPrimary: { width: "100%", background: "#C4877A", color: "#0E0E0E", border: "none", borderRadius: 10, padding: "16px", fontSize: 15, fontWeight: 500, cursor: "pointer", letterSpacing: "0.02em" },
-      btnSecondary: { width: "100%", background: "transparent", color: "#888", border: "1px solid #222", borderRadius: 10, padding: "16px", fontSize: 15, cursor: "pointer", letterSpacing: "0.02em" },
-      backLink: { background: "none", border: "none", color: "#555", fontSize: 12, cursor: "pointer", padding: 0, marginBottom: 20, display: "block", letterSpacing: "0.03em" },
-      navBtn: { background: "none", border: "1px solid #242424", color: "#888", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" },
-      dayCell: { borderRadius: 8, padding: "8px 0", fontSize: 13, cursor: "pointer", transition: "all 0.15s", fontFamily: "'Inter', sans-serif" },
-      dateTag: { display: "inline-block", background: "#C4877A22", color: "#C4877A", border: "1px solid #C4877A44", borderRadius: 20, padding: "4px 10px", fontSize: 11, marginRight: 6, marginTop: 6 },
-      dateChoice: { background: "transparent", border: "1px solid #2A2A2A", borderRadius: 10, padding: "13px 16px", textAlign: "left", cursor: "pointer", fontSize: 13, fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", transition: "all 0.15s" },
-      codeBlock: { background: "#181818", border: "1px solid #2A2A2A", borderRadius: 12, padding: "24px", textAlign: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 40, color: "#E8E4DE", letterSpacing: "0.25em", marginBottom: 16 },
-      eventRow: { background: "#181818", border: "1px solid #1E1E1E", borderRadius: 10, padding: "14px 16px", textAlign: "left", cursor: "pointer", width: "100%", transition: "border-color 0.15s" },
-      tagChip: { display: "inline-flex", alignItems: "center", gap: 6, background: "#1E1E1E", border: "1px solid #2A2A2A", borderRadius: 20, padding: "4px 10px 4px 12px", fontSize: 12, color: "#C4877A" },
-      tagRemove: { background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0 },
-      chip: { background: "transparent", border: "1px solid #2A2A2A", borderRadius: 20, padding: "7px 14px", fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif", transition: "all 0.15s" },
-      divider: { borderTop: "1px solid #1E1E1E", marginTop: 20, marginBottom: 4 },
+// ── TagInput ──────────────────────────────────────────────────────────────
+function TagInput(values, onChange, placeholder, maxItems) {
+  maxItems = maxItems || 5;
+  const wrap = div("");
+  function draw() {
+    wrap.innerHTML = "";
+    const row = div("tag-row");
+    const inp = el("input", { class: "input", placeholder, maxlength: "50", style: { flex: "1", marginBottom: "0" } });
+    const addBtn = btn("tag-add-btn" + (inp.value.trim() && values.length < maxItems ? " active" : ""), "+");
+    const doAdd = () => {
+      const v = inp.value.trim();
+      if (!v || values.includes(v) || values.length >= maxItems) return;
+      values = [...values, v]; onChange(values); inp.value = ""; draw();
     };
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); doAdd(); } });
+    inp.addEventListener("input", () => { addBtn.className = "tag-add-btn" + (inp.value.trim() && values.length < maxItems ? " active" : ""); });
+    addBtn.addEventListener("click", doAdd);
+    row.append(inp, addBtn);
+    wrap.appendChild(row);
+    if (values.length > 0) {
+      const chips = div("tag-chips");
+      values.forEach(v => {
+        const chip = el("span", { class: "tag-chip" }, v);
+        const rm = btn("tag-remove", "×", () => { values = values.filter(x => x !== v); onChange(values); draw(); });
+        chip.appendChild(rm);
+        chips.appendChild(chip);
+      });
+      wrap.appendChild(chips);
+    }
+  }
+  draw();
+  return { el: wrap, get: () => values };
+}
 
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
-  </script>
+// ── ChipSelect ────────────────────────────────────────────────────────────
+function ChipSelect(options, value, onChange) {
+  const wrap = div("");
+  let showOther = value && !options.includes(value);
+  function draw() {
+    wrap.innerHTML = "";
+    const group = div("chip-group");
+    options.forEach(o => {
+      const c = btn("chip" + (value === o ? " selected" : ""), o, () => { value = o; showOther = false; onChange(value); draw(); });
+      group.appendChild(c);
+    });
+    const otherBtn = btn("chip" + ((showOther || (value && !options.includes(value))) ? " selected" : ""), "autre…", () => {
+      showOther = !showOther; if (showOther) { value = ""; onChange(""); } draw();
+    });
+    group.appendChild(otherBtn);
+    wrap.appendChild(group);
+    if (showOther || (value && !options.includes(value))) {
+      const inp = el("input", { class: "input", placeholder: "Précise ici…", maxlength: "60", style: { marginTop: "6px" } });
+      inp.value = (!options.includes(value) && value) ? value : "";
+      inp.addEventListener("input", () => { value = inp.value; onChange(value); });
+      wrap.appendChild(inp);
+      setTimeout(() => inp.focus(), 50);
+    }
+  }
+  draw();
+  return wrap;
+}
+
+// ── Views ─────────────────────────────────────────────────────────────────
+function HomeView() {
+  const count = loadEvents().length;
+  const card = div("card", div(""), );
+  card.style.textAlign = "center";
+  const hero = el("h1", { class: "hero" }, "on se voit ?");
+  const tag = el("p", { class: "tagline" }, "Les plannings d'adulte c'est compliqué.");
+  const btnsCol = div("btns-col");
+  const b1 = btn("btn", "Créer un événement", () => navigate("create"));
+  b1.style.padding = "16px"; b1.style.fontSize = "15px";
+  const b2 = btn("btn-secondary", "J'ai reçu un code", () => navigate("respond"));
+  btnsCol.append(b1, b2);
+  card.append(hero, tag, btnsCol);
+  if (count > 0) {
+    const hl = btn("history-link", `Mes événements (${count}) →`, () => navigate("history"));
+    card.appendChild(hl);
+  }
+  return card;
+}
+
+function CreateView() {
+  let selectedDates = [];
+  let lieux = [];
+  let activites = [];
+  const card = div("card");
+  card.appendChild(btn("btn-back", "← retour", () => navigate("home")));
+  card.appendChild(el("h2", { class: "card-title" }, "Nouvel événement"));
+
+  card.appendChild(el("label", { class: "label" }, "Un titre pour l'occasion"));
+  const titleInp = el("input", { class: "input", placeholder: "ex. apéro juillet, ciné cette semaine…", maxlength: "60" });
+  card.appendChild(titleInp);
+
+  card.appendChild(el("label", { class: "label" }, "Un mot (optionnel)"));
+  const noteInp = el("textarea", { class: "input", placeholder: "ex. ça fait longtemps, on s'organise ?", maxlength: "200" });
+  card.appendChild(noteInp);
+
+  card.appendChild(el("label", { class: "label" }, "Tes dispos"));
+  const cal = Calendar(selectedDates, (d) => { selectedDates = d; updateTags(); updateBtn(); });
+  card.appendChild(cal);
+
+  const tagsWrap = div("date-tags");
+  card.appendChild(tagsWrap);
+
+  function updateTags() {
+    tagsWrap.innerHTML = "";
+    selectedDates.forEach(d => tagsWrap.appendChild(el("span", { class: "date-tag" }, formatDate(d))));
+  }
+
+  card.appendChild(div("divider"));
+  card.appendChild(el("label", { class: "label" }, "Lieux possibles ", el("span", { style: { color: "#444", textTransform: "none", letterSpacing: "0" } }, "(optionnel)")));
+  card.appendChild(el("p", { class: "hint" }, "Ajoute des idées — tes potes choisiront. Entrée ou +"));
+  const lieuTag = TagInput(lieux, (v) => { lieux = v; }, "ex. chez moi, le café du Théâtre…", 5);
+  card.appendChild(lieuTag.el);
+
+  card.appendChild(div("divider"));
+  card.appendChild(el("label", { class: "label" }, "Activités possibles ", el("span", { style: { color: "#444", textTransform: "none", letterSpacing: "0" } }, "(optionnel)")));
+  card.appendChild(el("p", { class: "hint" }, "Idem — ils votent pour ce qu'ils préfèrent."));
+  const actTag = TagInput(activites, (v) => { activites = v; }, "ex. ciné, balade, apéro…", 5);
+  card.appendChild(actTag.el);
+
+  const createBtn = btn("btn", "Générer le code →", () => {
+    const title = titleInp.value.trim();
+    if (!title || selectedDates.length === 0) return;
+    const code = generateCode();
+    const event = { id: code, title, note: noteInp.value.trim(), dates: selectedDates, lieux: lieuTag.get(), activites: actTag.get(), responses: [], createdAt: new Date().toISOString() };
+    const events = loadEvents(); events.push(event); saveEvents(events);
+    navigate("code", { createdEvent: event });
+  });
+  createBtn.style.marginTop = "24px";
+  createBtn.disabled = true;
+
+  function updateBtn() { createBtn.disabled = !(titleInp.value.trim() && selectedDates.length > 0); }
+  titleInp.addEventListener("input", updateBtn);
+  card.appendChild(createBtn);
+  return card;
+}
+
+function CodeView() {
+  const event = state.createdEvent;
+  const card = div("card");
+  card.appendChild(btn("btn-back", "← retour", () => navigate("home")));
+  card.appendChild(el("h2", { class: "card-title" }, event.title));
+  card.appendChild(el("p", { style: { color: "#888", fontSize: "13px", marginBottom: "24px" } }, "Envoie ce code à tes potes."));
+  card.appendChild(div("code-block", event.id));
+  const shareText = `Salut ! Je veux qu'on se voit — utilise ce code pour choisir une date : ${event.id}`;
+  let copied = false;
+  const copyBtn = btn("btn", "Copier le message", () => {
+    navigator.clipboard?.writeText(shareText).then(() => { copyBtn.textContent = "Copié ✓"; setTimeout(() => copyBtn.textContent = "Copier le message", 2000); });
+  });
+  card.append(copyBtn, el("p", { class: "share-hint" }, `"${shareText}"`));
+  return card;
+}
+
+function RespondView() {
+  let foundEvent = null;
+  let chosenDates = [], chosenLieu = "", chosenActivite = "";
+
+  const card = div("card");
+  card.appendChild(btn("btn-back", "← retour", () => navigate("home")));
+
+  function showCodeEntry() {
+    card.innerHTML = "";
+    card.appendChild(btn("btn-back", "← retour", () => navigate("home")));
+    card.appendChild(el("h2", { class: "card-title" }, "Entrer un code"));
+    card.appendChild(el("p", { style: { color: "#888", fontSize: "13px", marginBottom: "20px" } }, "Tu as reçu un code à 5 lettres ? Saisis-le ici."));
+    const codeInp = el("input", { class: "input code-input", placeholder: "XXXXX", maxlength: "5" });
+    codeInp.addEventListener("input", () => { codeInp.value = codeInp.value.toUpperCase(); findBtn.disabled = codeInp.value.length < 5; });
+    card.appendChild(codeInp);
+    const errMsg = el("p", { class: "error-msg", style: { display: "none" } });
+    card.appendChild(errMsg);
+    const findBtn = btn("btn", "Voir les dispos →", () => {
+      const events = loadEvents();
+      foundEvent = events.find(e => e.id === codeInp.value.trim());
+      if (foundEvent) showForm();
+      else { errMsg.textContent = "Code introuvable. Vérifie avec la personne qui t'a envoyé ça."; errMsg.style.display = "block"; }
+    });
+    findBtn.disabled = true;
+    card.appendChild(findBtn);
+  }
+
+  function showForm() {
+    card.innerHTML = "";
+    card.appendChild(btn("btn-back", "← changer de code", () => showCodeEntry()));
+    card.appendChild(el("h2", { class: "card-title" }, foundEvent.title));
+    if (foundEvent.note) card.appendChild(el("p", { style: { color: "#999", fontSize: "13px", marginBottom: "20px", fontStyle: "italic" } }, `"${foundEvent.note}"`));
+
+    card.appendChild(el("label", { class: "label" }, "Ton prénom"));
+    const nameInp = el("input", { class: "input", placeholder: "Comment tu t'appelles ?", maxlength: "40" });
+    card.appendChild(nameInp);
+
+    card.appendChild(el("label", { class: "label" }, "Les dates qui t'arrangent"));
+    card.appendChild(el("p", { class: "hint" }, "Coche tout ce qui te convient."));
+    foundEvent.dates.forEach(d => {
+      const dc = btn("date-choice" + (chosenDates.includes(d) ? " selected" : ""), "");
+      const check = el("span", { class: "check" }, chosenDates.includes(d) ? "✓" : "○");
+      dc.append(check, formatDate(d));
+      dc.addEventListener("click", () => {
+        if (chosenDates.includes(d)) chosenDates = chosenDates.filter(x => x !== d);
+        else chosenDates = [...chosenDates, d];
+        check.textContent = chosenDates.includes(d) ? "✓" : "○";
+        dc.className = "date-choice" + (chosenDates.includes(d) ? " selected" : "");
+        updateSubmit();
+      });
+      card.appendChild(dc);
+    });
+
+    let lieuChipWrap = null, actChipWrap = null;
+    if (foundEvent.lieux && foundEvent.lieux.length > 0) {
+      card.appendChild(div("divider"));
+      card.appendChild(el("label", { class: "label" }, "Lieu"));
+      card.appendChild(el("p", { class: "hint" }, "Où tu préfères ?"));
+      lieuChipWrap = div("");
+      const lieuChip = ChipSelect(foundEvent.lieux, chosenLieu, v => { chosenLieu = v; });
+      lieuChipWrap.appendChild(lieuChip);
+      card.appendChild(lieuChipWrap);
+    }
+    if (foundEvent.activites && foundEvent.activites.length > 0) {
+      card.appendChild(div("divider"));
+      card.appendChild(el("label", { class: "label" }, "Activité"));
+      card.appendChild(el("p", { class: "hint" }, "Qu'est-ce qui te tente ?"));
+      const actChip = ChipSelect(foundEvent.activites, chosenActivite, v => { chosenActivite = v; });
+      card.appendChild(actChip);
+    }
+
+    const submitBtn = btn("btn", "Envoyer →", () => {
+      const name = nameInp.value.trim();
+      if (!name || chosenDates.length === 0) return;
+      const events = loadEvents();
+      const idx = events.findIndex(e => e.id === foundEvent.id);
+      if (idx !== -1) {
+        events[idx].responses.push({ name, dates: chosenDates, lieu: chosenLieu, activite: chosenActivite, at: new Date().toISOString() });
+        saveEvents(events);
+        showSuccess(name);
+      }
+    });
+    submitBtn.disabled = true;
+    submitBtn.style.marginTop = "20px";
+    card.appendChild(submitBtn);
+
+    function updateSubmit() { submitBtn.disabled = !(nameInp.value.trim() && chosenDates.length > 0); }
+    nameInp.addEventListener("input", updateSubmit);
+  }
+
+  function showSuccess(name) {
+    card.innerHTML = "";
+    const center = div("success-center");
+    center.appendChild(div("success-icon", "🖤"));
+    center.appendChild(el("h2", { class: "success-title" }, "C'est noté !"));
+    center.appendChild(el("p", { class: "success-text" }, `${name}, tes réponses ont été envoyées. On va se voir bientôt.`));
+    card.appendChild(center);
+    const b = btn("btn", "← accueil", () => navigate("home"));
+    b.style.marginTop = "24px";
+    card.appendChild(b);
+  }
+
+  showCodeEntry();
+  return card;
+}
+
+function HistoryView() {
+  const events = loadEvents().reverse();
+  const card = div("card");
+  card.appendChild(btn("btn-back", "← retour", () => navigate("home")));
+  if (events.length === 0) {
+    card.appendChild(el("p", { class: "empty-state", style: { textAlign: "center", padding: "32px 0" } }, "Aucun événement pour l'instant."));
+    return card;
+  }
+  card.appendChild(el("h2", { class: "card-title" }, "Mes événements"));
+  events.forEach(e => {
+    const row = btn("event-row", "");
+    const top = div("flex-between");
+    top.appendChild(el("span", { class: "event-row-title" }, e.title));
+    top.appendChild(el("span", { class: "event-row-code" }, e.id));
+    row.appendChild(top);
+    row.appendChild(el("div", { class: "event-row-meta" }, `${e.dates.length} date${e.dates.length>1?"s":""} · ${e.responses.length} réponse${e.responses.length!==1?"s":""}`));
+    row.addEventListener("click", () => navigate("detail", { selectedEvent: e }));
+    card.appendChild(row);
+  });
+  return card;
+}
+
+function DetailView() {
+  const events = loadEvents();
+  const event = events.find(e => e.id === state.selectedEvent.id) || state.selectedEvent;
+
+  const dateCounts = {};
+  event.dates.forEach(d => { dateCounts[d] = 0; });
+  event.responses.forEach(r => r.dates.forEach(d => { if (dateCounts[d] !== undefined) dateCounts[d]++; }));
+  const maxCount = Math.max(...Object.values(dateCounts), 0);
+
+  const lieuCounts = {}, actCounts = {};
+  event.responses.forEach(r => {
+    if (r.lieu) lieuCounts[r.lieu] = (lieuCounts[r.lieu] || 0) + 1;
+    if (r.activite) actCounts[r.activite] = (actCounts[r.activite] || 0) + 1;
+  });
+  const maxLieu = Math.max(...Object.values(lieuCounts), 0);
+  const maxAct = Math.max(...Object.values(actCounts), 0);
+
+  const card = div("card");
+  card.appendChild(btn("btn-back", "← retour", () => navigate("history")));
+  const topRow = div("flex-between");
+  topRow.appendChild(el("h2", { class: "card-title", style: { marginBottom: "0" } }, event.title));
+  topRow.appendChild(el("span", { class: "event-row-code", style: { paddingTop: "4px" } }, event.id));
+  card.appendChild(topRow);
+  card.appendChild(el("p", { class: "responses-count" }, `${event.responses.length} réponse${event.responses.length!==1?"s":""}`));
+
+  if (event.responses.length === 0) {
+    card.appendChild(el("p", { class: "empty-state" }, "Personne n'a encore répondu."));
+    return card;
+  }
+
+  function resultSection(title, items, maxVal, total) {
+    card.appendChild(el("h3", { class: "section-title" }, title));
+    items.forEach(([label, count]) => {
+      const isTop = count === maxVal && maxVal > 0;
+      const row = div("result-row" + (isTop ? " top" : ""));
+      row.appendChild(el("span", { class: "label-text" }, label));
+      row.appendChild(el("span", { class: "count" }, total !== undefined ? `${count} / ${total}` : String(count)));
+      card.appendChild(row);
+    });
+  }
+
+  resultSection("Dates", event.dates.map(d => [formatDate(d), dateCounts[d]]), maxCount, event.responses.length);
+  if (Object.keys(lieuCounts).length > 0) resultSection("Lieux", Object.entries(lieuCounts).sort((a,b)=>b[1]-a[1]), maxLieu, undefined);
+  if (Object.keys(actCounts).length > 0) resultSection("Activités", Object.entries(actCounts).sort((a,b)=>b[1]-a[1]), maxAct, undefined);
+
+  card.appendChild(el("h3", { class: "section-title", style: { marginTop: "20px" } }, "Réponses individuelles"));
+  event.responses.forEach(r => {
+    const rc = div("response-card");
+    rc.appendChild(el("div", { class: "response-name" }, r.name));
+    r.dates.forEach(d => rc.appendChild(el("div", { class: "response-detail" }, `· ${formatDate(d)}`)));
+    if (r.lieu) rc.appendChild(el("div", { class: "response-detail meta" }, `📍 ${r.lieu}`));
+    if (r.activite) rc.appendChild(el("div", { class: "response-detail meta" }, `✦ ${r.activite}`));
+    card.appendChild(rc);
+  });
+
+  return card;
+}
+
+render();
+</script>
 </body>
 </html>
