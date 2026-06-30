@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -109,20 +108,83 @@
     .btns-col { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
     .italic { font-style: italic; }
     .mono { font-family: monospace; }
+    .loading { text-align: center; padding: 40px 0; color: #555; font-size: 13px; }
+    .spinner { width: 24px; height: 24px; border: 2px solid #2A2A2A; border-top-color: #C4877A; border-radius: 50%; margin: 0 auto 12px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 <div id="app"><div class="wrap" id="root"></div></div>
 
 <script>
-const STORAGE_KEY = "dispo_events_v2";
+// ── Supabase config ─────────────────────────────────────────────────────
+const SUPABASE_URL = "https://fezqpatacevewhiqjmne.supabase.co";
+const SUPABASE_KEY = "sb_publishable_XR-ulmhy6hYmECrwbUHmag_OKNED6Y9";
 
-function loadEvents() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { return []; }
+async function sbRequest(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Supabase error ${res.status}: ${text}`);
+  }
+  if (res.status === 204) return null;
+  return res.json();
 }
-function saveEvents(e) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(e)); } catch {}
+
+async function createEvent(event) {
+  return sbRequest("events", {
+    method: "POST",
+    headers: { "Prefer": "return=representation" },
+    body: JSON.stringify({
+      id: event.id, title: event.title, note: event.note,
+      dates: event.dates, lieux: event.lieux, activites: event.activites,
+      responses: event.responses,
+    }),
+  });
 }
+
+async function getEvent(id) {
+  const rows = await sbRequest(`events?id=eq.${encodeURIComponent(id)}&select=*`);
+  return rows && rows[0] ? rows[0] : null;
+}
+
+async function listEvents() {
+  // We track which event IDs this browser created, then fetch only those
+  const myIds = getMyEventIds();
+  if (myIds.length === 0) return [];
+  const idList = myIds.map(id => `"${id}"`).join(",");
+  return sbRequest(`events?id=in.(${idList})&select=*&order=created_at.desc`);
+}
+
+async function addResponse(eventId, response) {
+  const event = await getEvent(eventId);
+  if (!event) throw new Error("Événement introuvable");
+  const newResponses = [...(event.responses || []), response];
+  return sbRequest(`events?id=eq.${encodeURIComponent(eventId)}`, {
+    method: "PATCH",
+    headers: { "Prefer": "return=representation" },
+    body: JSON.stringify({ responses: newResponses }),
+  });
+}
+
+// Track locally which events *this* browser created (for "Mes événements")
+const MY_EVENTS_KEY = "dispo_my_event_ids";
+function getMyEventIds() {
+  try { return JSON.parse(localStorage.getItem(MY_EVENTS_KEY) || "[]"); } catch { return []; }
+}
+function addMyEventId(id) {
+  const ids = getMyEventIds();
+  if (!ids.includes(id)) { ids.push(id); localStorage.setItem(MY_EVENTS_KEY, JSON.stringify(ids)); }
+}
+
 function generateCode() {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
@@ -151,14 +213,26 @@ function btn(cls, text, onClick, disabled) {
   if (disabled) b.disabled = true;
   return b;
 }
+function loadingDiv(text) {
+  const d = div("loading");
+  d.appendChild(div("spinner"));
+  d.appendChild(document.createTextNode(text || "Chargement…"));
+  return d;
+}
 
 // ── State ────────────────────────────────────────────────────────────────
-let state = { view: "home", createdEvent: null, selectedEvent: null };
+let state = { view: "home", createdEvent: null, selectedEventId: null };
 function render() {
   const root = document.getElementById("root");
   root.innerHTML = "";
   const views = { home: HomeView, create: CreateView, code: CodeView, respond: RespondView, history: HistoryView, detail: DetailView };
-  root.appendChild((views[state.view] || HomeView)());
+  const result = (views[state.view] || HomeView)();
+  if (result instanceof Promise) {
+    root.appendChild(loadingDiv());
+    result.then(node => { root.innerHTML = ""; root.appendChild(node); });
+  } else {
+    root.appendChild(result);
+  }
 }
 function navigate(view, extra) { state = { ...state, view, ...extra }; render(); }
 
@@ -168,7 +242,7 @@ function Calendar(selected, onChange) {
   let year = today.getFullYear(), month = today.getMonth();
   const min = toISO(today.getFullYear(), today.getMonth(), today.getDate());
 
-  const wrap = div("", );
+  const wrap = div("");
   function draw() {
     wrap.innerHTML = "";
     const monthLabel = new Date(year, month).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
@@ -268,8 +342,8 @@ function ChipSelect(options, value, onChange) {
 
 // ── Views ─────────────────────────────────────────────────────────────────
 function HomeView() {
-  const count = loadEvents().length;
-  const card = div("card", div(""), );
+  const count = getMyEventIds().length;
+  const card = div("card");
   card.style.textAlign = "center";
   const hero = el("h1", { class: "hero" }, "on se voit ?");
   const tag = el("p", { class: "tagline" }, "Les plannings d'adulte c'est compliqué.");
@@ -290,6 +364,7 @@ function CreateView() {
   let selectedDates = [];
   let lieux = [];
   let activites = [];
+  let submitting = false;
   const card = div("card");
   card.appendChild(btn("btn-back", "← retour", () => navigate("home")));
   card.appendChild(el("h2", { class: "card-title" }, "Nouvel événement"));
@@ -326,18 +401,33 @@ function CreateView() {
   const actTag = TagInput(activites, (v) => { activites = v; }, "ex. ciné, balade, apéro…", 5);
   card.appendChild(actTag.el);
 
-  const createBtn = btn("btn", "Générer le code →", () => {
+  const errMsg = el("p", { class: "error-msg", style: { display: "none" } });
+  card.appendChild(errMsg);
+
+  const createBtn = btn("btn", "Générer le code →", async () => {
     const title = titleInp.value.trim();
-    if (!title || selectedDates.length === 0) return;
-    const code = generateCode();
-    const event = { id: code, title, note: noteInp.value.trim(), dates: selectedDates, lieux: lieuTag.get(), activites: actTag.get(), responses: [], createdAt: new Date().toISOString() };
-    const events = loadEvents(); events.push(event); saveEvents(events);
-    navigate("code", { createdEvent: event });
+    if (!title || selectedDates.length === 0 || submitting) return;
+    submitting = true;
+    createBtn.textContent = "Création…";
+    createBtn.disabled = true;
+    try {
+      const code = generateCode();
+      const event = { id: code, title, note: noteInp.value.trim(), dates: selectedDates, lieux: lieuTag.get(), activites: actTag.get(), responses: [] };
+      await createEvent(event);
+      addMyEventId(code);
+      navigate("code", { createdEvent: event });
+    } catch (e) {
+      errMsg.textContent = "Erreur : impossible de créer l'événement. Réessaie.";
+      errMsg.style.display = "block";
+      createBtn.textContent = "Générer le code →";
+      submitting = false;
+      updateBtn();
+    }
   });
   createBtn.style.marginTop = "24px";
   createBtn.disabled = true;
 
-  function updateBtn() { createBtn.disabled = !(titleInp.value.trim() && selectedDates.length > 0); }
+  function updateBtn() { createBtn.disabled = !(titleInp.value.trim() && selectedDates.length > 0) || submitting; }
   titleInp.addEventListener("input", updateBtn);
   card.appendChild(createBtn);
   return card;
@@ -351,7 +441,6 @@ function CodeView() {
   card.appendChild(el("p", { style: { color: "#888", fontSize: "13px", marginBottom: "24px" } }, "Envoie ce code à tes potes."));
   card.appendChild(div("code-block", event.id));
   const shareText = `Salut ! Je veux qu'on se voit — utilise ce code pour choisir une date : ${event.id}`;
-  let copied = false;
   const copyBtn = btn("btn", "Copier le message", () => {
     navigator.clipboard?.writeText(shareText).then(() => { copyBtn.textContent = "Copié ✓"; setTimeout(() => copyBtn.textContent = "Copier le message", 2000); });
   });
@@ -364,7 +453,6 @@ function RespondView() {
   let chosenDates = [], chosenLieu = "", chosenActivite = "";
 
   const card = div("card");
-  card.appendChild(btn("btn-back", "← retour", () => navigate("home")));
 
   function showCodeEntry() {
     card.innerHTML = "";
@@ -376,11 +464,19 @@ function RespondView() {
     card.appendChild(codeInp);
     const errMsg = el("p", { class: "error-msg", style: { display: "none" } });
     card.appendChild(errMsg);
-    const findBtn = btn("btn", "Voir les dispos →", () => {
-      const events = loadEvents();
-      foundEvent = events.find(e => e.id === codeInp.value.trim());
-      if (foundEvent) showForm();
-      else { errMsg.textContent = "Code introuvable. Vérifie avec la personne qui t'a envoyé ça."; errMsg.style.display = "block"; }
+    const findBtn = btn("btn", "Voir les dispos →", async () => {
+      findBtn.textContent = "Recherche…";
+      findBtn.disabled = true;
+      try {
+        foundEvent = await getEvent(codeInp.value.trim());
+        if (foundEvent) showForm();
+        else { errMsg.textContent = "Code introuvable. Vérifie avec la personne qui t'a envoyé ça."; errMsg.style.display = "block"; findBtn.textContent = "Voir les dispos →"; findBtn.disabled = false; }
+      } catch (e) {
+        errMsg.textContent = "Erreur de connexion. Réessaie.";
+        errMsg.style.display = "block";
+        findBtn.textContent = "Voir les dispos →";
+        findBtn.disabled = false;
+      }
     });
     findBtn.disabled = true;
     card.appendChild(findBtn);
@@ -412,15 +508,12 @@ function RespondView() {
       card.appendChild(dc);
     });
 
-    let lieuChipWrap = null, actChipWrap = null;
     if (foundEvent.lieux && foundEvent.lieux.length > 0) {
       card.appendChild(div("divider"));
       card.appendChild(el("label", { class: "label" }, "Lieu"));
       card.appendChild(el("p", { class: "hint" }, "Où tu préfères ?"));
-      lieuChipWrap = div("");
       const lieuChip = ChipSelect(foundEvent.lieux, chosenLieu, v => { chosenLieu = v; });
-      lieuChipWrap.appendChild(lieuChip);
-      card.appendChild(lieuChipWrap);
+      card.appendChild(lieuChip);
     }
     if (foundEvent.activites && foundEvent.activites.length > 0) {
       card.appendChild(div("divider"));
@@ -430,15 +523,22 @@ function RespondView() {
       card.appendChild(actChip);
     }
 
-    const submitBtn = btn("btn", "Envoyer →", () => {
+    const errMsg = el("p", { class: "error-msg", style: { display: "none" } });
+    card.appendChild(errMsg);
+
+    const submitBtn = btn("btn", "Envoyer →", async () => {
       const name = nameInp.value.trim();
       if (!name || chosenDates.length === 0) return;
-      const events = loadEvents();
-      const idx = events.findIndex(e => e.id === foundEvent.id);
-      if (idx !== -1) {
-        events[idx].responses.push({ name, dates: chosenDates, lieu: chosenLieu, activite: chosenActivite, at: new Date().toISOString() });
-        saveEvents(events);
+      submitBtn.textContent = "Envoi…";
+      submitBtn.disabled = true;
+      try {
+        await addResponse(foundEvent.id, { name, dates: chosenDates, lieu: chosenLieu, activite: chosenActivite, at: new Date().toISOString() });
         showSuccess(name);
+      } catch (e) {
+        errMsg.textContent = "Erreur d'envoi. Réessaie.";
+        errMsg.style.display = "block";
+        submitBtn.textContent = "Envoyer →";
+        submitBtn.disabled = false;
       }
     });
     submitBtn.disabled = true;
@@ -465,10 +565,16 @@ function RespondView() {
   return card;
 }
 
-function HistoryView() {
-  const events = loadEvents().reverse();
+async function HistoryView() {
   const card = div("card");
   card.appendChild(btn("btn-back", "← retour", () => navigate("home")));
+  let events = [];
+  try {
+    events = await listEvents();
+  } catch (e) {
+    card.appendChild(el("p", { class: "error-msg" }, "Erreur de chargement."));
+    return card;
+  }
   if (events.length === 0) {
     card.appendChild(el("p", { class: "empty-state", style: { textAlign: "center", padding: "32px 0" } }, "Aucun événement pour l'instant."));
     return card;
@@ -480,39 +586,49 @@ function HistoryView() {
     top.appendChild(el("span", { class: "event-row-title" }, e.title));
     top.appendChild(el("span", { class: "event-row-code" }, e.id));
     row.appendChild(top);
-    row.appendChild(el("div", { class: "event-row-meta" }, `${e.dates.length} date${e.dates.length>1?"s":""} · ${e.responses.length} réponse${e.responses.length!==1?"s":""}`));
-    row.addEventListener("click", () => navigate("detail", { selectedEvent: e }));
+    row.appendChild(el("div", { class: "event-row-meta" }, `${e.dates.length} date${e.dates.length>1?"s":""} · ${(e.responses||[]).length} réponse${(e.responses||[]).length!==1?"s":""}`));
+    row.addEventListener("click", () => navigate("detail", { selectedEventId: e.id }));
     card.appendChild(row);
   });
   return card;
 }
 
-function DetailView() {
-  const events = loadEvents();
-  const event = events.find(e => e.id === state.selectedEvent.id) || state.selectedEvent;
+async function DetailView() {
+  const card = div("card");
+  card.appendChild(btn("btn-back", "← retour", () => navigate("history")));
+  let event;
+  try {
+    event = await getEvent(state.selectedEventId);
+  } catch (e) {
+    card.appendChild(el("p", { class: "error-msg" }, "Erreur de chargement."));
+    return card;
+  }
+  if (!event) {
+    card.appendChild(el("p", { class: "empty-state" }, "Événement introuvable."));
+    return card;
+  }
+  const responses = event.responses || [];
 
   const dateCounts = {};
   event.dates.forEach(d => { dateCounts[d] = 0; });
-  event.responses.forEach(r => r.dates.forEach(d => { if (dateCounts[d] !== undefined) dateCounts[d]++; }));
+  responses.forEach(r => r.dates.forEach(d => { if (dateCounts[d] !== undefined) dateCounts[d]++; }));
   const maxCount = Math.max(...Object.values(dateCounts), 0);
 
   const lieuCounts = {}, actCounts = {};
-  event.responses.forEach(r => {
+  responses.forEach(r => {
     if (r.lieu) lieuCounts[r.lieu] = (lieuCounts[r.lieu] || 0) + 1;
     if (r.activite) actCounts[r.activite] = (actCounts[r.activite] || 0) + 1;
   });
   const maxLieu = Math.max(...Object.values(lieuCounts), 0);
   const maxAct = Math.max(...Object.values(actCounts), 0);
 
-  const card = div("card");
-  card.appendChild(btn("btn-back", "← retour", () => navigate("history")));
   const topRow = div("flex-between");
   topRow.appendChild(el("h2", { class: "card-title", style: { marginBottom: "0" } }, event.title));
   topRow.appendChild(el("span", { class: "event-row-code", style: { paddingTop: "4px" } }, event.id));
   card.appendChild(topRow);
-  card.appendChild(el("p", { class: "responses-count" }, `${event.responses.length} réponse${event.responses.length!==1?"s":""}`));
+  card.appendChild(el("p", { class: "responses-count" }, `${responses.length} réponse${responses.length!==1?"s":""}`));
 
-  if (event.responses.length === 0) {
+  if (responses.length === 0) {
     card.appendChild(el("p", { class: "empty-state" }, "Personne n'a encore répondu."));
     return card;
   }
@@ -528,12 +644,12 @@ function DetailView() {
     });
   }
 
-  resultSection("Dates", event.dates.map(d => [formatDate(d), dateCounts[d]]), maxCount, event.responses.length);
+  resultSection("Dates", event.dates.map(d => [formatDate(d), dateCounts[d]]), maxCount, responses.length);
   if (Object.keys(lieuCounts).length > 0) resultSection("Lieux", Object.entries(lieuCounts).sort((a,b)=>b[1]-a[1]), maxLieu, undefined);
   if (Object.keys(actCounts).length > 0) resultSection("Activités", Object.entries(actCounts).sort((a,b)=>b[1]-a[1]), maxAct, undefined);
 
   card.appendChild(el("h3", { class: "section-title", style: { marginTop: "20px" } }, "Réponses individuelles"));
-  event.responses.forEach(r => {
+  responses.forEach(r => {
     const rc = div("response-card");
     rc.appendChild(el("div", { class: "response-name" }, r.name));
     r.dates.forEach(d => rc.appendChild(el("div", { class: "response-detail" }, `· ${formatDate(d)}`)));
